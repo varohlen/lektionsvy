@@ -820,7 +820,7 @@
 </script>
 
 <svelte:head>
-    <title>Partille Gymnasium Classroom Screen</title>
+    <title>Lektionsvy | Partille Gymnasium</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
         rel="preconnect"
@@ -833,7 +833,7 @@
     />
     <meta
         name="description"
-        content="Minimalistiskt första utkast för en classroom screen för Partille Gymnasium."
+        content="Lektionsvy är en widgetbaserad classroom screen för Partille Gymnasium."
     />
 </svelte:head>
 

@@ -1,42 +1,37 @@
-# sv
+# Lektionsvy
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Lektionsvy är en widgetbaserad classroom screen för undervisning.
 
-## Creating a project
+Projektet är just nu ett POC i SvelteKit/Vite+ med fokus på:
 
-If you're seeing this, you've probably already done this step. Congrats!
+- fri placering av widgets
+- digital och analog timer
+- digital och analog klocka
+- skolprofilering per organisation
+- fullscreen-läge för klassrumsskärm
 
-```sh
-# create a new project
-npx sv create my-app
-```
+## Utveckling
 
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-pnpm dlx sv@0.12.8 create --template minimal --types ts --install pnpm classroom-screen
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Installera beroenden:
 
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+vp install
 ```
 
-## Building
-
-To create a production version of your app:
+Starta utvecklingsservern:
 
 ```sh
-npm run build
+vp dev
 ```
 
-You can preview the production build with `npm run preview`.
+Kör kontroll:
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+```sh
+vp run check
+```
+
+## Nästa steg
+
+- deploy till Cloudflare för test i produktionsläge
+- separera skolspecifik branding tydligare
+- spara och återladda skärmlayouter
