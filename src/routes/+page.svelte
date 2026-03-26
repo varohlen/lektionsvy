@@ -10,6 +10,7 @@
     import LogoWidget from "$lib/components/widgets/LogoWidget.svelte";
     import TextWidget from "$lib/components/widgets/TextWidget.svelte";
     import TimerWidget from "$lib/components/widgets/TimerWidget.svelte";
+    import TrelsonWidget from "$lib/components/widgets/TrelsonWidget.svelte";
     import { onMount } from "svelte";
 
     type WidgetType =
@@ -20,12 +21,20 @@
         | "analog"
         | "lessonTimer"
         | "timer"
-        | "lesson";
+        | "lesson"
+        | "trelson";
+    type WidgetReadiness = "ready" | "beta" | "prototype";
     type Theme = "light" | "dark";
     type TextWidgetFont = "myriad" | "knewave";
     type LessonStep = {
         label: string;
         value: string;
+    };
+    type TrelsonPins = {
+        start: string;
+        resume: string;
+        submit: string;
+        close: string;
     };
     type WidgetConstraint = {
         minW: number;
@@ -61,6 +70,7 @@
         lessonTimerRemaining?: number;
         lessonTimerRunning?: boolean;
         steps?: LessonStep[];
+        trelsonPins?: TrelsonPins;
     };
     type DragState = {
         id: string;
@@ -78,6 +88,9 @@
     const INITIAL_BOARD_WIDTH = 1366;
     const INITIAL_BOARD_HEIGHT = 768;
     const GRID_SIZE = 16;
+    const TRELSON_EDIT_SECTION_COUNT = 5;
+    const TRELSON_SECTION_SCALE = 0.155;
+    const TRELSON_SECTION_GAP_FACTOR = 0.18;
 
     const defaultLessonSteps: LessonStep[] = [
         { label: "Mål", value: "Kom igång och förstå uppgiften." },
@@ -94,6 +107,37 @@
         lessonTimer: "Analog timer",
         timer: "Digital timer",
         lesson: "Lektionsyta",
+        trelson: "Trelson",
+    };
+
+    const widgetReadiness: Record<
+        WidgetType,
+        { status: WidgetReadiness; note?: string }
+    > = {
+        logo: { status: "ready", note: "Visar skolans logotyp som fristående widget." },
+        date: { status: "ready", note: "Datumrad som skalar efter innehållet." },
+        digital: { status: "ready", note: "Stor digital klocka för klassrummet." },
+        text: {
+            status: "beta",
+            note: "Bra för rubriktext. Fritext behöver egen variant.",
+        },
+        analog: {
+            status: "prototype",
+            note: "Grund finns, men kräver mer polish innan produktion.",
+        },
+        lessonTimer: {
+            status: "ready",
+            note: "Visuell analog nedräkning för lektionspass.",
+        },
+        timer: {
+            status: "ready",
+            note: "Exakt digital timer med snabb redigering i widgeten.",
+        },
+        lesson: {
+            status: "prototype",
+            note: "Fortfarande mest en layout-prototyp.",
+        },
+        trelson: { status: "beta", note: "PIN-widget för Trelson-flöden." },
     };
 
     const digitalTimeFormatter = new Intl.DateTimeFormat("sv-SE", {
@@ -121,6 +165,7 @@
         },
         timer: { minW: 320, minH: 170, keepAspect: true, aspectRatio: 2 },
         lesson: { minW: 260, minH: 180, keepAspect: false },
+        trelson: { minW: 280, minH: 120, keepAspect: false },
     };
 
     const widgetDefaults: Record<WidgetType, WidgetDefaultLayout> = {
@@ -181,9 +226,23 @@
             z: 8,
             visible: false,
         },
+        trelson: {
+            x: 0.647,
+            y: 0.13,
+            w: 0.23,
+            h: 0.34,
+            z: 9,
+            visible: false,
+        },
     };
 
     let widgetIdCounter = 0;
+    const defaultTrelsonPins: TrelsonPins = {
+        start: "",
+        resume: "",
+        submit: "",
+        close: "",
+    };
 
     function nextWidgetId(type: WidgetType) {
         widgetIdCounter += 1;
@@ -223,6 +282,8 @@
             key: type,
             label: widgetLabels[type],
             count: widgets.filter((widget) => widget.type === type).length,
+            status: widgetReadiness[type].status,
+            note: widgetReadiness[type].note,
             onAdd: () => addWidget(type),
         })),
     );
@@ -322,6 +383,11 @@
             instance.steps = defaultLessonSteps.map((step) => ({ ...step }));
         }
 
+        if (type === "trelson") {
+            instance.trelsonPins = { ...defaultTrelsonPins };
+            instance.h = getTrelsonHeight(instance.w, TRELSON_EDIT_SECTION_COUNT);
+        }
+
         return instance;
     }
 
@@ -348,10 +414,67 @@
 
         widgets = [...widgets, nextWidget];
         selectedWidgetId = nextWidget.id;
+        syncTrelsonHeight(nextWidget.id, true);
+    }
+
+    function getTrelsonSectionCount(
+        widget: WidgetInstance,
+        selected = selectedWidgetId === widget.id,
+    ) {
+        if (widget.type !== "trelson") return 0;
+        if (selected) return TRELSON_EDIT_SECTION_COUNT;
+
+        const filledCount = Object.values(widget.trelsonPins ?? defaultTrelsonPins).filter(
+            (value) => value.trim().length > 0,
+        ).length;
+
+        return Math.max(1, 1 + filledCount);
+    }
+
+    function getTrelsonSectionHeightFromWidth(width: number) {
+        return Math.max(44, width * TRELSON_SECTION_SCALE);
+    }
+
+    function getTrelsonGapFromSectionHeight(sectionHeight: number) {
+        return sectionHeight * TRELSON_SECTION_GAP_FACTOR;
+    }
+
+    function getTrelsonHeight(width: number, sectionCount: number) {
+        const sectionHeight = getTrelsonSectionHeightFromWidth(width);
+        const sectionGap = getTrelsonGapFromSectionHeight(sectionHeight);
+
+        return Math.round(
+            sectionHeight * sectionCount + sectionGap * (sectionCount - 1),
+        );
+    }
+
+    function getTrelsonWidthFromHeight(height: number, sectionCount: number) {
+        const sectionUnit =
+            TRELSON_SECTION_SCALE *
+            (sectionCount + TRELSON_SECTION_GAP_FACTOR * (sectionCount - 1));
+
+        return height / sectionUnit;
+    }
+
+    function syncTrelsonHeight(id: string, forceSelected?: boolean) {
+        const widget = findWidget(id);
+        if (!widget || widget.type !== "trelson") return;
+
+        const sectionCount = getTrelsonSectionCount(
+            widget,
+            forceSelected ?? selectedWidgetId === id,
+        );
+
+        widget.h = getTrelsonHeight(widget.w, sectionCount);
+        widgets = [...widgets];
     }
 
     function selectWidget(id: string) {
+        if (selectedWidgetId && selectedWidgetId !== id) {
+            syncTrelsonHeight(selectedWidgetId, false);
+        }
         selectedWidgetId = id;
+        syncTrelsonHeight(id, true);
     }
 
     function removeWidget(id: string) {
@@ -473,6 +596,23 @@
 
         widget.textValue = value;
         widgets = [...widgets];
+    }
+
+    function updateTrelsonPin(
+        id: string,
+        field: keyof TrelsonPins,
+        value: string,
+    ) {
+        const widget = findWidget(id);
+        if (!widget || widget.type !== "trelson") return;
+
+        const sanitized = value.replace(/\D/g, "").slice(0, 8);
+        widget.trelsonPins = {
+            ...defaultTrelsonPins,
+            ...widget.trelsonPins,
+            [field]: sanitized,
+        };
+        syncTrelsonHeight(id);
     }
 
     function toggleShowGrid() {
@@ -604,6 +744,39 @@
 
             let nextW = resizeState.startW + deltaX;
             let nextH = resizeState.startH + deltaY;
+
+            if (widget.type === "trelson") {
+                const sectionCount = getTrelsonSectionCount(widget, true);
+                const widthCandidate = resizeState.startW + deltaX;
+                const heightCandidate = resizeState.startH + deltaY;
+                const heightDrivenWidth = getTrelsonWidthFromHeight(
+                    Math.max(constraints.minH, Math.min(heightCandidate, maxH)),
+                    sectionCount,
+                );
+
+                nextW =
+                    Math.abs(deltaY) > Math.abs(deltaX)
+                        ? heightDrivenWidth
+                        : widthCandidate;
+                nextW = Math.max(constraints.minW, Math.min(nextW, maxW));
+
+                if (snapToGrid) {
+                    nextW = Math.max(
+                        constraints.minW,
+                        Math.min(snapValue(nextW), maxW),
+                    );
+                }
+
+                const derivedHeight = getTrelsonHeight(nextW, sectionCount);
+
+                widget.w = nextW;
+                widget.h = Math.max(
+                    constraints.minH,
+                    Math.min(derivedHeight, maxH),
+                );
+                widgets = [...widgets];
+                return;
+            }
 
             if (constraints.autoWidth) {
                 const aspectRatio = resizeState.startW / resizeState.startH;
@@ -749,6 +922,9 @@
 
     function clearSelection() {
         if (dragState || resizeState) return;
+        if (selectedWidgetId) {
+            syncTrelsonHeight(selectedWidgetId, false);
+        }
         selectedWidgetId = null;
     }
 
@@ -1049,6 +1225,26 @@
                         onSendBackward={() =>
                             moveWidgetLayer(widget.id, "backward")}
                         onDelete={() => removeWidget(widget.id)}
+                    />
+                {:else if widget.type === "trelson"}
+                    <TrelsonWidget
+                        x={widget.x}
+                        y={widget.y}
+                        w={widget.w}
+                        h={widget.h}
+                        z={widget.z}
+                        selected={selectedWidgetId === widget.id}
+                        pins={widget.trelsonPins ?? defaultTrelsonPins}
+                        onSelect={() => selectWidget(widget.id)}
+                        onMoveStart={(event) => startDrag(event, widget.id)}
+                        onResizeStart={(event) => startResize(event, widget.id)}
+                        onBringForward={() =>
+                            moveWidgetLayer(widget.id, "forward")}
+                        onSendBackward={() =>
+                            moveWidgetLayer(widget.id, "backward")}
+                        onDelete={() => removeWidget(widget.id)}
+                        onPinChange={(field, value) =>
+                            updateTrelsonPin(widget.id, field, value)}
                     />
                 {/if}
             {/each}
