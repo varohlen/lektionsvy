@@ -22,10 +22,10 @@
 	}: Props = $props();
 </script>
 
-<div class="floating-controls">
+<div class="dock">
 	<button
 		class:active={addMenuOpen}
-		class="control-button"
+		class="dock-button"
 		type="button"
 		aria-label="Lägg till widget"
 		onclick={onToggleAddMenu}
@@ -33,11 +33,14 @@
 		<svg viewBox="0 0 24 24" aria-hidden="true">
 			<path d="M12 5v14M5 12h14" />
 		</svg>
+		<span class="dock-label">Widgets</span>
 	</button>
+
+	<span class="dock-divider"></span>
 
 	<button
 		class:active={settingsOpen}
-		class="control-button"
+		class="dock-button"
 		type="button"
 		aria-label="Inställningar"
 		onclick={onToggleSettings}
@@ -48,11 +51,14 @@
 			/>
 			<circle cx="12" cy="12" r="2.7" />
 		</svg>
+		<span class="dock-label">Inställningar</span>
 	</button>
+
+	<span class="dock-divider"></span>
 
 	<button
 		class:active={fullscreenActive}
-		class="control-button"
+		class="dock-button"
 		type="button"
 		aria-label={fullscreenActive ? "Lämna helskärm" : "Visa i helskärm"}
 		onclick={onToggleFullscreen}
@@ -65,46 +71,73 @@
 				<path d="M8 8 4 4M16 8l4-4M8 16l-4 4M16 16l4 4" />
 			{/if}
 		</svg>
+		<span class="dock-label">{fullscreenActive ? "Avsluta" : "Helskärm"}</span>
 	</button>
 </div>
 
 <style>
-	.floating-controls {
+	.dock {
 		position: fixed;
-		top: 1.25rem;
-		right: 1.25rem;
+		bottom: 1rem;
+		left: 50%;
+		transform: translateX(-50%);
 		z-index: 20;
-		display: grid;
-		gap: 0.7rem;
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 0.45rem 0.6rem;
+		border: 1px solid var(--border);
+		border-radius: 0.85rem;
+		background: var(--surface);
+		box-shadow: var(--shadow);
 	}
 
-	.control-button {
+	.dock-divider {
+		width: 1px;
+		height: 1.6rem;
+		background: var(--border);
+		margin: 0 0.15rem;
+	}
+
+	.dock-button {
 		display: inline-flex;
 		align-items: center;
-		justify-content: center;
-		width: 3.1rem;
-		height: 3.1rem;
-		padding: 0;
-		border: 1px solid var(--border);
-		border-radius: 999px;
-		background: var(--surface-soft);
-		color: var(--text);
-		box-shadow: var(--shadow);
+		gap: 0.4rem;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid transparent;
+		border-radius: 0.55rem;
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		font-size: 0.82rem;
+		font-weight: 600;
 		cursor: pointer;
-		backdrop-filter: blur(18px);
+		transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 	}
 
-	.control-button.active {
-		background: color-mix(in srgb, var(--pg-blue-500) 18%, var(--surface-soft));
+	.dock-button:hover {
+		background: color-mix(in srgb, var(--text) 5%, transparent);
+		color: var(--text);
 	}
 
-	.control-button svg {
-		width: 1.15rem;
-		height: 1.15rem;
+	.dock-button.active {
+		background: color-mix(in srgb, var(--pg-blue-500) 12%, var(--surface-soft));
+		border-color: color-mix(in srgb, var(--pg-blue-500) 22%, transparent);
+		color: var(--text);
+	}
+
+	.dock-button svg {
+		width: 1.1rem;
+		height: 1.1rem;
 		fill: none;
 		stroke: currentColor;
 		stroke-linecap: round;
 		stroke-linejoin: round;
 		stroke-width: 1.8;
+		flex-shrink: 0;
+	}
+
+	.dock-label {
+		line-height: 1;
 	}
 </style>

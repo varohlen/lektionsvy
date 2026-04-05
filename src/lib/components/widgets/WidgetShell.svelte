@@ -58,10 +58,15 @@
 		onSelect();
 
 		const target = event.target as HTMLElement;
-		if (!selected) return;
+		const isEditable = target.closest('[contenteditable="true"]') ||
+			target.closest('input, textarea, select, a');
+
+		if (!selected) {
+			if (!isEditable) event.preventDefault();
+			return;
+		}
 		if (target.closest('button')) return;
-		if (target.closest('input, textarea, select, a')) return;
-		if (target.closest('[contenteditable="true"]')) return;
+		if (isEditable) return;
 
 		event.preventDefault();
 		onMoveStart(event);
@@ -188,57 +193,57 @@
 		padding: 1rem;
 		box-sizing: border-box;
 		border: 1px solid var(--border);
-		border-radius: 1.5rem;
+		border-radius: 1rem;
 		background: var(--surface);
-		backdrop-filter: blur(24px);
 		box-shadow: var(--shadow);
 		overflow: visible;
 		cursor: default;
 		user-select: none;
 		touch-action: none;
+		transition: box-shadow 160ms ease, border-color 160ms ease;
 	}
 
 	.widget.selected {
 		box-shadow:
-			0 0 0 2px color-mix(in srgb, var(--pg-blue-500) 68%, transparent),
+			0 0 0 2px color-mix(in srgb, var(--pg-blue-500) 52%, transparent),
 			var(--shadow);
 	}
 
 	.widget.frameless {
 		gap: 0.35rem;
 		padding: 0;
+		padding-left: 0;
 		border: none;
+		border-left: none;
 		border-radius: 0;
 		background: transparent;
-		backdrop-filter: none;
 		box-shadow: none;
 		overflow: visible;
 	}
 
 	.widget.frameless.selected {
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--pg-blue-500) 68%, transparent);
-		border-radius: 0.9rem;
+		box-shadow: 0 0 0 2px color-mix(in srgb, var(--pg-blue-500) 52%, transparent);
+		border-radius: 0.75rem;
 	}
 
 	.widget-toolbar {
 		position: absolute;
 		right: 0;
-		bottom: -3.2rem;
+		bottom: -3rem;
 		display: inline-flex;
 		align-items: center;
-		gap: 0.55rem;
-		padding: 0.42rem 0.72rem;
+		gap: 0.5rem;
+		padding: 0.38rem 0.65rem;
 		border: 1px solid var(--border);
-		border-radius: 999px;
-		background: var(--surface-soft);
+		border-radius: 0.65rem;
+		background: var(--surface);
 		color: var(--text);
 		box-shadow: var(--shadow);
 		white-space: nowrap;
-		backdrop-filter: blur(18px);
 	}
 
 	.widget-toolbar.top {
-		top: -3.2rem;
+		top: -3rem;
 		bottom: auto;
 	}
 
@@ -249,30 +254,38 @@
 
 	.widget-title {
 		font: inherit;
-		font-size: 0.85rem;
+		font-size: 0.8rem;
 		font-weight: 700;
+		color: var(--muted);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
 	}
 
 	.widget-actions {
 		display: inline-flex;
-		gap: 0.2rem;
+		gap: 0.15rem;
 	}
 
 	.toolbar-button {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 1.9rem;
-		height: 1.9rem;
+		width: 1.8rem;
+		height: 1.8rem;
 		padding: 0;
-		border: none;
-		border-radius: 999px;
-		background: color-mix(in srgb, var(--surface-soft) 78%, transparent);
+		border: 1px solid var(--border);
+		border-radius: 0.45rem;
+		background: var(--surface-soft);
 		color: var(--text);
 		cursor: pointer;
-		font-size: 1.05rem;
+		font-size: 1rem;
 		font-weight: 800;
 		line-height: 1;
+		transition: background 120ms ease;
+	}
+
+	.toolbar-button:hover {
+		background: color-mix(in srgb, var(--text) 8%, var(--surface-soft));
 	}
 
 	.widget-body {

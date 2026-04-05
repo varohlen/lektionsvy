@@ -113,25 +113,25 @@
 <style>
     .panel {
         position: fixed;
-        top: 5.15rem;
-        right: 5rem;
+        bottom: 4.2rem;
+        left: 50%;
+        transform: translateX(-50%);
         z-index: 19;
-        width: 16rem;
+        width: 20rem;
         padding: 1rem;
         border: 1px solid var(--border);
-        border-radius: 1.35rem;
+        border-radius: 0.85rem;
         background: var(--surface);
-        backdrop-filter: blur(22px);
         box-shadow: var(--shadow);
     }
 
     .panel-title {
-        margin: 0 0 0.8rem;
-        font-size: 0.9rem;
+        margin: 0 0 0.75rem;
+        font-size: 0.78rem;
         font-weight: 700;
         color: var(--muted);
         text-transform: uppercase;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.06em;
     }
 
     .theme-row {
@@ -139,19 +139,20 @@
         align-items: center;
         justify-content: space-between;
         width: 100%;
-        padding: 0.9rem 1rem;
+        padding: 0.7rem 0.85rem;
         border: 1px solid var(--border);
-        border-radius: 1rem;
+        border-radius: 0.6rem;
         background: var(--surface-soft);
         color: var(--text);
         font: inherit;
         cursor: pointer;
+        transition: background 120ms ease;
     }
 
     .settings-group {
         display: grid;
-        gap: 0.75rem;
-        margin-top: 0.75rem;
+        gap: 0.6rem;
+        margin-top: 0.6rem;
     }
 
     .theme-copy {
@@ -166,10 +167,10 @@
     }
 
     .toggle-badge {
-        --toggle-width: 3.1rem;
-        --toggle-height: 1.95rem;
-        --toggle-padding: 0.18rem;
-        --toggle-thumb-size: 1.35rem;
+        --toggle-width: 2.8rem;
+        --toggle-height: 1.7rem;
+        --toggle-padding: 0.15rem;
+        --toggle-thumb-size: 1.2rem;
 
         position: relative;
         display: inline-flex;
@@ -177,7 +178,7 @@
         width: var(--toggle-width);
         height: var(--toggle-height);
         padding: var(--toggle-padding);
-        border-radius: 999px;
+        border-radius: 0.5rem;
         background: color-mix(in srgb, var(--text) 10%, transparent);
         transition: background 140ms ease;
     }
@@ -186,9 +187,9 @@
         display: block;
         width: var(--toggle-thumb-size);
         height: var(--toggle-thumb-size);
-        border-radius: 999px;
+        border-radius: 0.35rem;
         background: var(--surface);
-        box-shadow: 0 2px 8px color-mix(in srgb, var(--text) 18%, transparent);
+        box-shadow: 0 1px 4px color-mix(in srgb, var(--text) 14%, transparent);
         transform: translateX(0);
         transition: transform 140ms ease;
     }

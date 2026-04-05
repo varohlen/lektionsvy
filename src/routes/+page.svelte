@@ -5,11 +5,14 @@
     import AnalogClockWidget from "$lib/components/widgets/AnalogClockWidget.svelte";
     import DateWidget from "$lib/components/widgets/DateWidget.svelte";
     import DigitalClockWidget from "$lib/components/widgets/DigitalClockWidget.svelte";
-    import LessonWidget from "$lib/components/widgets/LessonWidget.svelte";
+    import LcdClockWidget from "$lib/components/widgets/LcdClockWidget.svelte";
     import LessonTimerWidget from "$lib/components/widgets/LessonTimerWidget.svelte";
+    import BodyTextWidget from "$lib/components/widgets/BodyTextWidget.svelte";
     import LogoWidget from "$lib/components/widgets/LogoWidget.svelte";
     import TextWidget from "$lib/components/widgets/TextWidget.svelte";
     import TimerWidget from "$lib/components/widgets/TimerWidget.svelte";
+    import QrCodeWidget from "$lib/components/widgets/QrCodeWidget.svelte";
+    import StopwatchWidget from "$lib/components/widgets/StopwatchWidget.svelte";
     import TrelsonWidget from "$lib/components/widgets/TrelsonWidget.svelte";
     import { onMount } from "svelte";
 
@@ -17,19 +20,18 @@
         | "logo"
         | "date"
         | "digital"
+        | "lcd"
         | "text"
+        | "bodyText"
         | "analog"
         | "lessonTimer"
         | "timer"
-        | "lesson"
+        | "stopwatch"
+        | "qrcode"
         | "trelson";
     type WidgetReadiness = "ready" | "beta" | "prototype";
     type Theme = "light" | "dark";
     type TextWidgetFont = "myriad" | "knewave";
-    type LessonStep = {
-        label: string;
-        value: string;
-    };
     type TrelsonPins = {
         start: string;
         resume: string;
@@ -69,7 +71,11 @@
         lessonTimerDurationMinutes?: number;
         lessonTimerRemaining?: number;
         lessonTimerRunning?: boolean;
-        steps?: LessonStep[];
+        stopwatchStartTime?: number | null;
+        stopwatchAccumulated?: number;
+        stopwatchRunning?: boolean;
+        stopwatchLaps?: number[];
+        qrValue?: string;
         trelsonPins?: TrelsonPins;
     };
     type DragState = {
@@ -92,21 +98,18 @@
     const TRELSON_SECTION_SCALE = 0.155;
     const TRELSON_SECTION_GAP_FACTOR = 0.18;
 
-    const defaultLessonSteps: LessonStep[] = [
-        { label: "Mål", value: "Kom igång och förstå uppgiften." },
-        { label: "Nu", value: "Gemensam start." },
-        { label: "Sedan", value: "Eget arbete." },
-    ];
-
     const widgetLabels: Record<WidgetType, string> = {
         logo: "Logga",
         date: "Datum",
         digital: "Digital klocka",
-        text: "Text",
+        lcd: "LCD-klocka",
+        text: "Rubrik",
+        bodyText: "Brödtext",
         analog: "Analog klocka",
         lessonTimer: "Analog timer",
         timer: "Digital timer",
-        lesson: "Lektionsyta",
+        stopwatch: "Stoppur",
+        qrcode: "QR-kod",
         trelson: "Trelson",
     };
 
@@ -117,13 +120,18 @@
         logo: { status: "ready", note: "Visar skolans logotyp som fristående widget." },
         date: { status: "ready", note: "Datumrad som skalar efter innehållet." },
         digital: { status: "ready", note: "Stor digital klocka för klassrummet." },
+        lcd: { status: "ready", note: "Retro 7-segment LCD-display." },
         text: {
-            status: "beta",
-            note: "Bra för rubriktext. Fritext behöver egen variant.",
+            status: "ready",
+            note: "Stor skalande rubriktext för klassrummet.",
+        },
+        bodyText: {
+            status: "ready",
+            note: "Instruktioner, uppgifter och listor.",
         },
         analog: {
-            status: "prototype",
-            note: "Grund finns, men kräver mer polish innan produktion.",
+            status: "ready",
+            note: "Klassisk analog klocka med PG-färger.",
         },
         lessonTimer: {
             status: "ready",
@@ -133,9 +141,13 @@
             status: "ready",
             note: "Exakt digital timer med snabb redigering i widgeten.",
         },
-        lesson: {
-            status: "prototype",
-            note: "Fortfarande mest en layout-prototyp.",
+        stopwatch: {
+            status: "ready",
+            note: "Stoppur som räknar uppåt, med varvfunktion.",
+        },
+        qrcode: {
+            status: "ready",
+            note: "Visa QR-kod för valfri URL.",
         },
         trelson: { status: "beta", note: "PIN-widget för Trelson-flöden." },
     };
@@ -155,7 +167,9 @@
         logo: { minW: 180, minH: 44, keepAspect: true, aspectRatio: 387 / 91 },
         date: { minW: 160, minH: 24, keepAspect: false, autoWidth: true },
         digital: { minW: 160, minH: 72, keepAspect: false, autoWidth: true },
+        lcd: { minW: 240, minH: 80, keepAspect: true, aspectRatio: 2.64 },
         text: { minW: 140, minH: 40, keepAspect: false, autoWidth: true },
+        bodyText: { minW: 220, minH: 140, keepAspect: false },
         analog: { minW: 220, minH: 220, keepAspect: true, aspectRatio: 1 },
         lessonTimer: {
             minW: 320,
@@ -164,7 +178,8 @@
             aspectRatio: 1.1,
         },
         timer: { minW: 320, minH: 170, keepAspect: true, aspectRatio: 2 },
-        lesson: { minW: 260, minH: 180, keepAspect: false },
+        stopwatch: { minW: 340, minH: 140, keepAspect: true, aspectRatio: 2.5 },
+        qrcode: { minW: 180, minH: 200, keepAspect: false },
         trelson: { minW: 280, minH: 120, keepAspect: false },
     };
 
@@ -190,11 +205,26 @@
             z: 2,
             visible: true,
         },
+        lcd: {
+            x: 0.35,
+            y: 0.4,
+            w: 0.3,
+            z: 3,
+            visible: false,
+        },
         text: {
             x: 0.265,
             y: 0.3255,
             scaleH: 0.0755,
             z: 4,
+            visible: false,
+        },
+        bodyText: {
+            x: 0.35,
+            y: 0.25,
+            w: 0.3,
+            h: 0.4,
+            z: 5,
             visible: false,
         },
         analog: {
@@ -218,11 +248,19 @@
             z: 7,
             visible: false,
         },
-        lesson: {
-            x: 0.5974,
-            y: 0.5286,
-            w: 0.2489,
-            h: 0.3073,
+        stopwatch: {
+            x: 0.3,
+            y: 0.35,
+            w: 0.35,
+            h: 0.25,
+            z: 8,
+            visible: false,
+        },
+        qrcode: {
+            x: 0.4,
+            y: 0.2,
+            w: 0.2,
+            h: 0.35,
             z: 8,
             visible: false,
         },
@@ -367,6 +405,10 @@
             instance.textFont = "myriad";
         }
 
+        if (type === "bodyText") {
+            instance.textValue = "Skriv instruktioner här...";
+        }
+
         if (type === "timer") {
             instance.timerDuration = 15 * 60;
             instance.timerRemaining = 15 * 60;
@@ -379,8 +421,15 @@
             instance.lessonTimerRunning = false;
         }
 
-        if (type === "lesson") {
-            instance.steps = defaultLessonSteps.map((step) => ({ ...step }));
+        if (type === "stopwatch") {
+            instance.stopwatchStartTime = null;
+            instance.stopwatchAccumulated = 0;
+            instance.stopwatchRunning = false;
+            instance.stopwatchLaps = [];
+        }
+
+        if (type === "qrcode") {
+            instance.qrValue = "";
         }
 
         if (type === "trelson") {
@@ -578,6 +627,54 @@
         widgets = [...widgets];
     }
 
+    function getStopwatchElapsed(widget: WidgetInstance) {
+        const accumulated = widget.stopwatchAccumulated ?? 0;
+        if (widget.stopwatchRunning && widget.stopwatchStartTime) {
+            return accumulated + (Date.now() - widget.stopwatchStartTime);
+        }
+        return accumulated;
+    }
+
+    function toggleStopwatch(id: string) {
+        const widget = findWidget(id);
+        if (!widget || widget.type !== "stopwatch") return;
+        if (widget.stopwatchRunning) {
+            const elapsed = getStopwatchElapsed(widget);
+            widget.stopwatchAccumulated = elapsed;
+            widget.stopwatchStartTime = null;
+            widget.stopwatchRunning = false;
+        } else {
+            widget.stopwatchStartTime = Date.now();
+            widget.stopwatchRunning = true;
+        }
+        widgets = [...widgets];
+    }
+
+    function resetStopwatch(id: string) {
+        const widget = findWidget(id);
+        if (!widget || widget.type !== "stopwatch") return;
+        widget.stopwatchStartTime = null;
+        widget.stopwatchAccumulated = 0;
+        widget.stopwatchRunning = false;
+        widget.stopwatchLaps = [];
+        widgets = [...widgets];
+    }
+
+    function lapStopwatch(id: string) {
+        const widget = findWidget(id);
+        if (!widget || widget.type !== "stopwatch") return;
+        const elapsed = getStopwatchElapsed(widget);
+        widget.stopwatchLaps = [elapsed, ...(widget.stopwatchLaps ?? [])];
+        widgets = [...widgets];
+    }
+
+    function updateQrValue(id: string, value: string) {
+        const widget = findWidget(id);
+        if (!widget || widget.type !== "qrcode") return;
+        widget.qrValue = value;
+        widgets = [...widgets];
+    }
+
     function toggleTheme() {
         theme = theme === "light" ? "dark" : "light";
     }
@@ -592,7 +689,7 @@
 
     function updateTextWidgetValue(id: string, value: string) {
         const widget = findWidget(id);
-        if (!widget || widget.type !== "text") return;
+        if (!widget || (widget.type !== "text" && widget.type !== "bodyText")) return;
 
         widget.textValue = value;
         widgets = [...widgets];
@@ -1113,6 +1210,25 @@
                             moveWidgetLayer(widget.id, "backward")}
                         onDelete={() => removeWidget(widget.id)}
                     />
+                {:else if widget.type === "lcd"}
+                    <LcdClockWidget
+                        x={widget.x}
+                        y={widget.y}
+                        w={widget.w}
+                        h={widget.h}
+                        z={widget.z}
+                        selected={selectedWidgetId === widget.id}
+                        time={digitalTime}
+                        seconds={now.getSeconds()}
+                        onSelect={() => selectWidget(widget.id)}
+                        onMoveStart={(event) => startDrag(event, widget.id)}
+                        onResizeStart={(event) => startResize(event, widget.id)}
+                        onBringForward={() =>
+                            moveWidgetLayer(widget.id, "forward")}
+                        onSendBackward={() =>
+                            moveWidgetLayer(widget.id, "backward")}
+                        onDelete={() => removeWidget(widget.id)}
+                    />
                 {:else if widget.type === "text"}
                     <TextWidget
                         x={widget.x}
@@ -1208,15 +1324,15 @@
                             moveWidgetLayer(widget.id, "backward")}
                         onDelete={() => removeWidget(widget.id)}
                     />
-                {:else if widget.type === "lesson"}
-                    <LessonWidget
+                {:else if widget.type === "bodyText"}
+                    <BodyTextWidget
                         x={widget.x}
                         y={widget.y}
                         w={widget.w}
                         h={widget.h}
                         z={widget.z}
                         selected={selectedWidgetId === widget.id}
-                        steps={widget.steps ?? defaultLessonSteps}
+                        value={widget.textValue ?? "Skriv instruktioner här..."}
                         onSelect={() => selectWidget(widget.id)}
                         onMoveStart={(event) => startDrag(event, widget.id)}
                         onResizeStart={(event) => startResize(event, widget.id)}
@@ -1225,6 +1341,52 @@
                         onSendBackward={() =>
                             moveWidgetLayer(widget.id, "backward")}
                         onDelete={() => removeWidget(widget.id)}
+                        onValueChange={(value) =>
+                            updateTextWidgetValue(widget.id, value)}
+                    />
+                {:else if widget.type === "stopwatch"}
+                    <StopwatchWidget
+                        x={widget.x}
+                        y={widget.y}
+                        w={widget.w}
+                        h={widget.h}
+                        z={widget.z}
+                        selected={selectedWidgetId === widget.id}
+                        startTime={widget.stopwatchStartTime ?? null}
+                        accumulated={widget.stopwatchAccumulated ?? 0}
+                        running={widget.stopwatchRunning ?? false}
+                        laps={widget.stopwatchLaps ?? []}
+                        onToggle={() => toggleStopwatch(widget.id)}
+                        onReset={() => resetStopwatch(widget.id)}
+                        onLap={() => lapStopwatch(widget.id)}
+                        onSelect={() => selectWidget(widget.id)}
+                        onMoveStart={(event) => startDrag(event, widget.id)}
+                        onResizeStart={(event) => startResize(event, widget.id)}
+                        onBringForward={() =>
+                            moveWidgetLayer(widget.id, "forward")}
+                        onSendBackward={() =>
+                            moveWidgetLayer(widget.id, "backward")}
+                        onDelete={() => removeWidget(widget.id)}
+                    />
+                {:else if widget.type === "qrcode"}
+                    <QrCodeWidget
+                        x={widget.x}
+                        y={widget.y}
+                        w={widget.w}
+                        h={widget.h}
+                        z={widget.z}
+                        selected={selectedWidgetId === widget.id}
+                        value={widget.qrValue ?? ""}
+                        onSelect={() => selectWidget(widget.id)}
+                        onMoveStart={(event) => startDrag(event, widget.id)}
+                        onResizeStart={(event) => startResize(event, widget.id)}
+                        onBringForward={() =>
+                            moveWidgetLayer(widget.id, "forward")}
+                        onSendBackward={() =>
+                            moveWidgetLayer(widget.id, "backward")}
+                        onDelete={() => removeWidget(widget.id)}
+                        onValueChange={(value) =>
+                            updateQrValue(widget.id, value)}
                     />
                 {:else if widget.type === "trelson"}
                     <TrelsonWidget
@@ -1258,30 +1420,44 @@
         width: 100%;
         height: 100svh;
         overflow: hidden;
-        background: linear-gradient(
-            180deg,
-            var(--bg-top) 0%,
-            var(--bg-bottom) 100%
-        );
+        background: var(--bg-bottom);
         color: var(--text);
+    }
+
+    .screen-shell::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(
+                ellipse 80% 60% at 15% 85%,
+                color-mix(in srgb, var(--pg-blue-300) 16%, transparent),
+                transparent 70%
+            ),
+            radial-gradient(
+                ellipse 60% 50% at 85% 20%,
+                color-mix(in srgb, var(--pg-orange-300) 10%, transparent),
+                transparent 70%
+            );
+        pointer-events: none;
+        z-index: 0;
     }
 
     .fullscreen-hint {
         position: fixed;
         left: 50%;
-        bottom: 1.5rem;
+        bottom: 4.5rem;
         z-index: 22;
         transform: translateX(-50%);
-        padding: 0.7rem 1rem;
+        padding: 0.6rem 1rem;
         border: 1px solid var(--border);
-        border-radius: 999px;
+        border-radius: 0.65rem;
         background: var(--hint-surface);
         color: var(--text);
-        font-size: 0.88rem;
+        font-size: 0.85rem;
         font-weight: 700;
         letter-spacing: 0.01em;
         box-shadow: var(--shadow);
-        backdrop-filter: blur(18px);
         pointer-events: none;
     }
 
@@ -1300,7 +1476,6 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: var(--canvas);
     }
 
     .board.grid-visible::before {
@@ -1347,7 +1522,9 @@
         display: grid;
         place-items: center;
         font-weight: 700;
-        color: color-mix(in srgb, var(--text) 42%, transparent);
+        font-size: 1.1rem;
+        letter-spacing: 0.02em;
+        color: color-mix(in srgb, var(--text) 32%, transparent);
         pointer-events: none;
     }
 </style>

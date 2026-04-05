@@ -397,11 +397,11 @@
     }
 
     .timer-bar {
-        height: calc(1rem * var(--timer-scale));
+        height: calc(0.65rem * var(--timer-scale));
         overflow: hidden;
-        border-radius: 999px;
+        border-radius: 0.2rem;
         background: var(--timer-orange-base);
-        box-shadow: inset 0 0 0 1px rgba(0, 59, 74, 0.18);
+        box-shadow: inset 0 0 0 1px rgba(0, 59, 74, 0.12);
     }
 
     .timer-bar-fill {
@@ -430,16 +430,17 @@
         flex: 0 1 auto;
         align-items: center;
         gap: calc(0.42rem * var(--timer-scale));
-        padding: calc(0.56rem * var(--timer-scale))
-            calc(0.95rem * var(--timer-scale));
+        padding: calc(0.52rem * var(--timer-scale))
+            calc(0.88rem * var(--timer-scale));
         border: 1px solid var(--border);
-        border-radius: 999px;
+        border-radius: calc(0.45rem * var(--timer-scale));
         background: var(--surface-soft);
         color: var(--text);
         font: inherit;
         font-size: calc(0.96rem * var(--timer-scale));
         font-weight: 700;
         cursor: pointer;
+        transition: background 120ms ease;
     }
 
     .action-button.running {
