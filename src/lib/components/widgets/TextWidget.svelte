@@ -1,7 +1,6 @@
 <script lang="ts">
 	import IntrinsicTextWidgetBase from './IntrinsicTextWidgetBase.svelte';
-
-	type TextFont = 'myriad' | 'knewave';
+	import type { TextWidgetFontVariant } from '$lib/theme';
 
 	type Props = {
 		x: number;
@@ -12,7 +11,8 @@
 		z: number;
 		selected: boolean;
 		value: string;
-		font: TextFont;
+		font: TextWidgetFontVariant;
+		fontLabels: Record<TextWidgetFontVariant, string>;
 		onSelect: () => void;
 		onMoveStart: (event: PointerEvent) => void;
 		onResizeStart: (event: PointerEvent) => void;
@@ -34,6 +34,7 @@
 		selected,
 		value,
 		font,
+		fontLabels,
 		onSelect,
 		onMoveStart,
 		onResizeStart,
@@ -46,13 +47,12 @@
 	}: Props = $props();
 
 	const textFontFamily = $derived(
-		font === 'knewave'
-			? '"Knewave", "Brush Script MT", "Segoe Print", cursive'
-			: '"Myriad Pro", "Avenir Next", "Segoe UI", sans-serif'
+		font === 'display' ? 'var(--font-display)' : 'var(--font-body)'
 	);
-	const lineHeight = $derived(font === 'knewave' ? '1.02' : '0.92');
-	const letterSpacing = $derived(font === 'knewave' ? '-0.01em' : '-0.035em');
-	const fontWeight = $derived(font === 'knewave' ? 400 : 700);
+	const lineHeight = $derived(font === 'display' ? '1.02' : '0.92');
+	const letterSpacing = $derived(font === 'display' ? '-0.01em' : '-0.035em');
+	const fontWeight = $derived(font === 'display' ? 400 : 700);
+	const currentFontLabel = $derived(fontLabels[font]);
 
 	function handleBlur(nextValue: string, element: HTMLDivElement) {
 		if (!nextValue) {
@@ -82,7 +82,7 @@
 	editable={true}
 	multiline={true}
 	ariaLabel="Redigera rubrik"
-	className={font === 'knewave' ? 'knewave' : ''}
+	className={font === 'display' ? 'display-font' : ''}
 	onMeasure={onMeasure}
 	onInput={onValueChange}
 	{onSelect}
@@ -95,13 +95,11 @@
 >
 	{#snippet toolbarActions()}
 		<button
-			class:alt-font={font === 'knewave'}
+			class:alt-font={font === 'display'}
 			class="toolbar-button text-style-button"
 			type="button"
-			aria-label={`Byt typsnitt för textwidgeten. Nuvarande typsnitt är ${
-				font === 'knewave' ? 'Knewave' : 'Myriad Pro'
-			}.`}
-			title={font === 'knewave' ? 'Knewave' : 'Myriad Pro'}
+			aria-label={`Byt typsnitt för textwidgeten. Nuvarande stil är ${currentFontLabel}.`}
+			title={currentFontLabel}
 			onclick={onToggleFont}
 		>
 			<span aria-hidden="true">T</span>
@@ -111,7 +109,7 @@
 
 <style>
 	.text-style-button.alt-font {
-		font-family: "Knewave", "Brush Script MT", "Segoe Print", cursive;
+		font-family: var(--font-display);
 		font-size: 0.95rem;
 	}
 </style>

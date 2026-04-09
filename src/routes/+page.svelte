@@ -14,6 +14,10 @@
     import QrCodeWidget from "$lib/components/widgets/QrCodeWidget.svelte";
     import StopwatchWidget from "$lib/components/widgets/StopwatchWidget.svelte";
     import TrelsonWidget from "$lib/components/widgets/TrelsonWidget.svelte";
+    import {
+        config as themeConfig,
+        type TextWidgetFontVariant,
+    } from "$lib/theme";
     import { onMount } from "svelte";
 
     type WidgetType =
@@ -31,7 +35,6 @@
         | "trelson";
     type WidgetReadiness = "ready" | "beta" | "prototype";
     type Theme = "light" | "dark";
-    type TextWidgetFont = "myriad" | "knewave";
     type TrelsonPins = {
         start: string;
         resume: string;
@@ -64,7 +67,7 @@
         scaleH?: number;
         z: number;
         textValue?: string;
-        textFont?: TextWidgetFont;
+        textFont?: TextWidgetFontVariant;
         timerDuration?: number;
         timerRemaining?: number;
         timerRunning?: boolean;
@@ -97,6 +100,7 @@
     const TRELSON_EDIT_SECTION_COUNT = 5;
     const TRELSON_SECTION_SCALE = 0.155;
     const TRELSON_SECTION_GAP_FACTOR = 0.18;
+    const trelsonEnabled = themeConfig.features.trelson;
 
     const widgetLabels: Record<WidgetType, string> = {
         logo: "Logga",
@@ -131,7 +135,7 @@
         },
         analog: {
             status: "ready",
-            note: "Klassisk analog klocka med PG-färger.",
+            note: "Klassisk analog klocka för klassrummet.",
         },
         lessonTimer: {
             status: "ready",
@@ -164,7 +168,12 @@
     });
 
     const widgetConstraints: Record<WidgetType, WidgetConstraint> = {
-        logo: { minW: 180, minH: 44, keepAspect: true, aspectRatio: 387 / 91 },
+        logo: {
+            minW: 180,
+            minH: 44,
+            keepAspect: true,
+            aspectRatio: themeConfig.logos.aspectRatio,
+        },
         date: { minW: 160, minH: 24, keepAspect: false, autoWidth: true },
         digital: { minW: 160, minH: 72, keepAspect: false, autoWidth: true },
         lcd: { minW: 240, minH: 80, keepAspect: true, aspectRatio: 2.64 },
@@ -273,6 +282,9 @@
             visible: false,
         },
     };
+    const enabledWidgetTypes = (Object.keys(widgetDefaults) as WidgetType[]).filter(
+        (type) => trelsonEnabled || type !== "trelson",
+    );
 
     let widgetIdCounter = 0;
     const defaultTrelsonPins: TrelsonPins = {
@@ -311,12 +323,12 @@
         ((now.getHours() % 12) + now.getMinutes() / 60) * 30,
     );
     const activeLogo = $derived(
-        theme === "dark" ? "/pg-negativ.svg" : "/pg.svg",
+        theme === "dark" ? themeConfig.logos.dark : themeConfig.logos.light,
     );
     const hasWidgets = $derived(widgets.length > 0);
     const orderedWidgets = $derived([...widgets].sort((a, b) => a.z - b.z));
     const widgetMenuEntries = $derived(
-        (Object.keys(widgetDefaults) as WidgetType[]).map((type) => ({
+        enabledWidgetTypes.map((type) => ({
             key: type,
             label: widgetLabels[type],
             count: widgets.filter((widget) => widget.type === type).length,
@@ -352,6 +364,10 @@
             offsetIndex?: number;
         },
     ): WidgetInstance {
+        if (!enabledWidgetTypes.includes(type)) {
+            throw new Error(`Widget type "${type}" is disabled in the active theme.`);
+        }
+
         const widget = widgetDefaults[type];
         const constraints = widgetConstraints[type];
         const projectedScaleHeight =
@@ -402,7 +418,7 @@
 
         if (type === "text") {
             instance.textValue = "Skriv rubrik";
-            instance.textFont = "myriad";
+            instance.textFont = themeConfig.textWidget.defaultFont;
         }
 
         if (type === "bodyText") {
@@ -444,7 +460,7 @@
         boardWidth = INITIAL_BOARD_WIDTH,
         boardHeight = INITIAL_BOARD_HEIGHT,
     ) {
-        return (Object.keys(widgetDefaults) as WidgetType[])
+        return enabledWidgetTypes
             .filter((type) => widgetDefaults[type].visible)
             .map((type) =>
                 createWidgetInstance(type, boardWidth, boardHeight, {
@@ -455,6 +471,8 @@
     }
 
     function addWidget(type: WidgetType) {
+        if (!enabledWidgetTypes.includes(type)) return;
+
         const { width, height } = getBoardSize();
         const offsetIndex = widgets.filter((widget) => widget.type === type).length;
         const nextWidget = createWidgetInstance(type, width, height, {
@@ -683,7 +701,7 @@
         const widget = findWidget(id);
         if (!widget || widget.type !== "text") return;
 
-        widget.textFont = widget.textFont === "myriad" ? "knewave" : "myriad";
+        widget.textFont = widget.textFont === "body" ? "display" : "body";
         widgets = [...widgets];
     }
 
@@ -1093,21 +1111,8 @@
 </script>
 
 <svelte:head>
-    <title>Lektionsvy | Partille Gymnasium</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link
-        rel="preconnect"
-        href="https://fonts.gstatic.com"
-        crossorigin="anonymous"
-    />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Knewave&display=swap"
-        rel="stylesheet"
-    />
-    <meta
-        name="description"
-        content="Lektionsvy är en widgetbaserad classroom screen för Partille Gymnasium."
-    />
+    <title>{themeConfig.pageTitle}</title>
+    <meta name="description" content={themeConfig.metaDescription} />
 </svelte:head>
 
 <div class="screen-shell" data-theme={theme}>
@@ -1239,7 +1244,8 @@
                         z={widget.z}
                         selected={selectedWidgetId === widget.id}
                         value={widget.textValue ?? "Skriv rubrik"}
-                        font={widget.textFont ?? "myriad"}
+                        font={widget.textFont ?? themeConfig.textWidget.defaultFont}
+                        fontLabels={themeConfig.textWidget.fontLabels}
                         onMeasure={(size) => syncIntrinsicSize(widget.id, size)}
                         onSelect={() => selectWidget(widget.id)}
                         onMoveStart={(event) => startDrag(event, widget.id)}
@@ -1431,12 +1437,12 @@
         background:
             radial-gradient(
                 ellipse 80% 60% at 15% 85%,
-                color-mix(in srgb, var(--pg-blue-300) 16%, transparent),
+                color-mix(in srgb, var(--brand-primary-300) 16%, transparent),
                 transparent 70%
             ),
             radial-gradient(
                 ellipse 60% 50% at 85% 20%,
-                color-mix(in srgb, var(--pg-orange-300) 10%, transparent),
+                color-mix(in srgb, var(--brand-warm-300) 10%, transparent),
                 transparent 70%
             );
         pointer-events: none;

@@ -1,6 +1,6 @@
-# Lektionsvy
+# Lektionsvy App
 
-Lektionsvy är en widgetbaserad classroom screen för undervisning.
+Lektionsvy App är den öppna kärnappen för Lektionsvy, byggd i SvelteKit/Vite+.
 
 Projektet är just nu ett POC i SvelteKit/Vite+ med fokus på:
 
