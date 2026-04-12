@@ -53,3 +53,18 @@ export type AppVariantConfig = {
     widgets: WidgetType[];
   };
 };
+
+export type VariantWidgetOverride = {
+  label?: string;
+  readiness?: Partial<VariantWidgetConfig["readiness"]>;
+  enabled?: boolean;
+  defaultLayout?: Partial<WidgetDefaultLayout>;
+  initialState?: Partial<NonNullable<VariantWidgetConfig["initialState"]>>;
+};
+
+export type AppVariantOverrides = {
+  widgets?: Partial<Record<WidgetType, VariantWidgetOverride>>;
+  initialBoard?: {
+    widgets?: WidgetType[];
+  };
+};
