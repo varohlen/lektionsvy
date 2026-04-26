@@ -29,11 +29,24 @@ export const config = {
     },
     colorLabels: {
       default: "Auto",
-      inverse: "Vit",
+      inverse: "Motsatt",
       primary: "Primär",
       warm: "Varm",
       success: "Grön",
       danger: "Röd",
+    },
+  },
+  bodyText: {
+    defaultFont: "sans",
+    fontLabels: {
+      sans: "Sans (Inter)",
+      display: "Display (League Spartan)",
+      mono: "Mono (JetBrains Mono)",
+    },
+    fontFamilies: {
+      sans: "var(--font-body)",
+      display: "var(--font-display)",
+      mono: "var(--font-mono)",
     },
   },
   features: {

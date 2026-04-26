@@ -66,15 +66,14 @@
 		onValueChange
 	}: Props = $props();
 
-	type OpenPicker = 'background' | 'color' | null;
+	type OpenPicker = 'style' | null;
 	type PaletteColor = {
 		name: string;
 		value: string;
 	};
 
 	let openPicker = $state<OpenPicker>(null);
-	let backgroundPickerElement = $state<HTMLDivElement | null>(null);
-	let colorPickerElement = $state<HTMLDivElement | null>(null);
+	let stylePickerElement = $state<HTMLDivElement | null>(null);
 	const resolvedColorCache = new Map<string, string>();
 
 	const textFontFamily = $derived(
@@ -122,7 +121,7 @@
 
 		switch (variant) {
 			case 'inverse':
-				return isDark ? '#f8faff' : 'white';
+				return isDark ? 'var(--brand-primary-900)' : 'white';
 			case 'primary':
 				return isDark ? 'var(--brand-primary-300)' : 'var(--brand-primary-700)';
 			case 'warm':
@@ -215,7 +214,7 @@
 			return;
 		}
 
-		if (backgroundPickerElement?.contains(target) || colorPickerElement?.contains(target)) {
+		if (stylePickerElement?.contains(target)) {
 			return;
 		}
 
@@ -309,130 +308,97 @@
 	onBlur={handleBlur}
 >
 	{#snippet toolbarActions(toolbarPlacement)}
-		<div
-			bind:this={backgroundPickerElement}
-			class="picker-control"
-			data-toolbar-vertical={toolbarPlacement.vertical}
-		>
+		<div bind:this={stylePickerElement} class="picker-control">
 			<button
-				class:has-background={background !== 'none'}
-				class:picker-open={openPicker === 'background'}
-				class="toolbar-button style-preview-button style-toolbar-button"
-				style={`--preview-fill:${textBackground};--preview-ink:${textColor};`}
+				class:picker-open={openPicker === 'style'}
+				class="toolbar-button style-menu-button"
 				type="button"
-				aria-expanded={openPicker === 'background'}
-				aria-label={`Välj bakgrund för textwidgeten. Nuvarande stil är ${currentBackgroundLabel}.`}
-				title={`Bakgrund: ${currentBackgroundLabel}`}
-				onpointerdown={(event) => handlePickerButtonPointerDown(event, 'background')}
+				aria-expanded={openPicker === 'style'}
+				aria-label={`Öppna stilinställningar för rubriken. Bakgrund ${currentBackgroundLabel}, textfärg ${currentColorLabel}, typsnitt ${currentFontLabel}.`}
+				title="Stil"
+				onpointerdown={(event) => handlePickerButtonPointerDown(event, 'style')}
 			>
-				<span aria-hidden="true" class="style-toolbar-button__label">
-					<span class="style-preview-chip"></span>
-					<span class="style-toolbar-button__text">Bakgr.</span>
+				<span aria-hidden="true" class="style-menu-button__label">
+					<span class="style-menu-icon">Aa</span>
+					<span>Stil</span>
 				</span>
 			</button>
 
-			{#if openPicker === 'background'}
+			{#if openPicker === 'style'}
 				<div
-					class="picker-popover"
-					class:picker-popover--below-toolbar={toolbarPlacement.vertical === 'bottom'}
-					class:picker-popover--above-toolbar={toolbarPlacement.vertical === 'top'}
+					class="style-menu-popover"
+					class:style-menu-popover--above={toolbarPlacement.vertical === 'top'}
+					class:style-menu-popover--right={toolbarPlacement.horizontal === 'right'}
 					role="dialog"
 					tabindex="-1"
-					aria-label="Välj bakgrundsfärg för rubriken"
+					aria-label="Stilinställningar för rubriken"
 					onpointerdown={(event) => event.stopPropagation()}
 				>
-					<p class="picker-label">Bakgrund</p>
-					<div class="palette-grid">
+					<section class="style-menu-section">
+						<p class="picker-label">Bakgrund</p>
+						<div class="palette-grid">
+							<button
+								class="palette-swatch palette-swatch--transparent"
+								class:selected={background === 'none'}
+								type="button"
+								aria-label="Ingen bakgrund"
+								title="Ingen"
+								onclick={() => handleBackgroundPaletteSelect({ color: null })}
+							>
+								<span class="palette-swatch__inner palette-swatch__inner--transparent"></span>
+							</button>
+							{#each backgroundPaletteColors as swatch}
+								<button
+									class="palette-swatch"
+									class:selected={swatch.value === selectedBackgroundSwatch}
+									style={`--swatch-color:${swatch.value};`}
+									type="button"
+									aria-label={swatch.name}
+									title={swatch.name}
+									onclick={() => handleBackgroundPaletteSelect({ color: swatch.value })}
+								>
+									<span class="palette-swatch__inner"></span>
+								</button>
+							{/each}
+						</div>
+					</section>
+
+					<section class="style-menu-section">
+						<p class="picker-label">Textfärg</p>
+						<div class="palette-grid">
+							{#each colorPaletteColors as swatch}
+								<button
+									class="palette-swatch"
+									class:selected={swatch.value === selectedColorSwatch}
+									style={`--swatch-color:${swatch.value};`}
+									type="button"
+									aria-label={swatch.name}
+									title={swatch.name}
+									onclick={() => handleColorPaletteSelect({ color: swatch.value })}
+								>
+									<span class="palette-swatch__inner"></span>
+								</button>
+							{/each}
+						</div>
+					</section>
+
+					<section class="style-menu-section">
+						<p class="picker-label">Typsnitt</p>
 						<button
-							class="palette-swatch palette-swatch--transparent"
-							class:selected={background === 'none'}
+							class:alt-font={font === 'display'}
+							class="font-choice-button"
 							type="button"
-							aria-label="Ingen bakgrund"
-							title="Ingen"
-							onclick={() => handleBackgroundPaletteSelect({ color: null })}
+							aria-label={`Byt typsnitt för textwidgeten. Nuvarande stil är ${currentFontLabel}.`}
+							title={currentFontLabel}
+							onclick={onToggleFont}
 						>
-							<span class="palette-swatch__inner palette-swatch__inner--transparent"></span>
+							<span class="font-icon">Tt</span>
+							<span>{currentFontLabel}</span>
 						</button>
-						{#each backgroundPaletteColors as swatch}
-							<button
-								class="palette-swatch"
-								class:selected={swatch.value === selectedBackgroundSwatch}
-								style={`--swatch-color:${swatch.value};`}
-								type="button"
-								aria-label={swatch.name}
-								title={swatch.name}
-								onclick={() => handleBackgroundPaletteSelect({ color: swatch.value })}
-							>
-								<span class="palette-swatch__inner"></span>
-							</button>
-						{/each}
-					</div>
+					</section>
 				</div>
 			{/if}
 		</div>
-		<div
-			bind:this={colorPickerElement}
-			class="picker-control"
-			data-toolbar-vertical={toolbarPlacement.vertical}
-		>
-			<button
-				class:picker-open={openPicker === 'color'}
-				class="toolbar-button text-color-button style-toolbar-button"
-				style={`--preview-ink:${textColor};`}
-				type="button"
-				aria-expanded={openPicker === 'color'}
-				aria-label={`Välj textfärg för textwidgeten. Nuvarande stil är ${currentColorLabel}.`}
-				title={`Textfärg: ${currentColorLabel}`}
-				onpointerdown={(event) => handlePickerButtonPointerDown(event, 'color')}
-			>
-				<span aria-hidden="true" class="style-toolbar-button__label">
-					<span class="text-color-icon">A</span>
-					<span class="style-toolbar-button__text">Färg</span>
-				</span>
-			</button>
-
-			{#if openPicker === 'color'}
-				<div
-					class="picker-popover picker-popover--right"
-					class:picker-popover--below-toolbar={toolbarPlacement.vertical === 'bottom'}
-					class:picker-popover--above-toolbar={toolbarPlacement.vertical === 'top'}
-					role="dialog"
-					tabindex="-1"
-					aria-label="Välj textfärg för rubriken"
-					onpointerdown={(event) => event.stopPropagation()}
-				>
-					<p class="picker-label">Textfärg</p>
-					<div class="palette-grid">
-						{#each colorPaletteColors as swatch}
-							<button
-								class="palette-swatch"
-								class:selected={swatch.value === selectedColorSwatch}
-								style={`--swatch-color:${swatch.value};`}
-								type="button"
-								aria-label={swatch.name}
-								title={swatch.name}
-								onclick={() => handleColorPaletteSelect({ color: swatch.value })}
-							>
-								<span class="palette-swatch__inner"></span>
-							</button>
-						{/each}
-					</div>
-				</div>
-			{/if}
-		</div>
-		<button
-			class:alt-font={font === 'display'}
-			class="toolbar-button text-style-button style-toolbar-button"
-			type="button"
-			aria-label={`Byt typsnitt för textwidgeten. Nuvarande stil är ${currentFontLabel}.`}
-			title={currentFontLabel}
-			onclick={onToggleFont}
-		>
-			<span aria-hidden="true" class="style-toolbar-button__label">
-				<span class="font-icon">Tt</span>
-				<span class="style-toolbar-button__text">Font</span>
-			</span>
-		</button>
 	{/snippet}
 </IntrinsicTextWidgetBase>
 
@@ -442,12 +408,38 @@
 		display: inline-flex;
 	}
 
-	.picker-popover {
+	.style-menu-button {
+		width: auto;
+		min-width: 3.2rem;
+		padding: 0 0.5rem;
+	}
+
+	.style-menu-button__label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.28rem;
+		font-size: 0.68rem;
+		font-weight: 800;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.style-menu-icon {
+		font-family: var(--font-display);
+		font-size: 0.82rem;
+		letter-spacing: -0.05em;
+		line-height: 1;
+	}
+
+	.style-menu-popover {
 		position: absolute;
-		right: 0;
+		left: 0;
 		z-index: 10;
-		min-width: 9rem;
-		padding: 0.65rem 0.7rem 0.75rem;
+		top: calc(100% + 0.55rem);
+		width: max-content;
+		min-width: 10.5rem;
+		max-width: calc(100vw - 2rem);
+		padding: 0.7rem;
 		border: 1px solid color-mix(in srgb, var(--text) 10%, var(--border));
 		border-radius: 0.75rem;
 		background: color-mix(in srgb, var(--surface) 92%, var(--surface-soft));
@@ -457,16 +449,18 @@
 		backdrop-filter: blur(10px);
 	}
 
-	.picker-popover--below-toolbar {
-		top: calc(100% + 0.55rem);
-	}
-
-	.picker-popover--above-toolbar {
+	.style-menu-popover--above {
+		top: auto;
 		bottom: calc(100% + 0.55rem);
 	}
 
-	.picker-popover--right {
+	.style-menu-popover--right {
+		left: auto;
 		right: 0;
+	}
+
+	.style-menu-section + .style-menu-section {
+		margin-top: 0.75rem;
 	}
 
 	.picker-label {
@@ -536,108 +530,36 @@
 			);
 	}
 
-	.style-preview-button {
-		position: relative;
-	}
-
-	.style-toolbar-button {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: auto;
-		min-width: 2.45rem;
-		height: 1.8rem;
-		padding: 0 0.45rem;
-		border: 1px solid var(--border);
-		border-radius: 0.45rem;
-		background: var(--surface-soft);
-		color: var(--text);
-		box-shadow: inset 0 0 0 1px color-mix(in srgb, white 8%, transparent);
-		transition:
-			background 120ms ease,
-			border-color 120ms ease,
-			color 120ms ease,
-			box-shadow 120ms ease;
-	}
-
-	.style-toolbar-button:hover {
-		background: color-mix(in srgb, var(--text) 8%, var(--surface-soft));
-	}
-
-	.style-toolbar-button:focus-visible {
-		outline: 2px solid color-mix(in srgb, var(--brand-primary-500) 55%, transparent);
-		outline-offset: 1px;
-	}
-
-	.style-toolbar-button__label {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.28rem;
-	}
-
-	.style-toolbar-button__text {
-		font-size: 0.63rem;
-		font-weight: 800;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: inherit;
-	}
-
-	.style-preview-chip {
-		width: 0.95rem;
-		height: 0.95rem;
-		border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
-		border-radius: 0.24rem;
-		background: var(--preview-fill);
-		box-shadow: inset 0 0 0 1px color-mix(in srgb, white 14%, transparent);
-	}
-
-	.style-preview-button:not(.has-background) .style-preview-chip {
-		background-image:
-			linear-gradient(
-				135deg,
-				transparent calc(50% - 0.5px),
-				color-mix(in srgb, var(--text) 28%, transparent) calc(50% - 0.5px),
-				color-mix(in srgb, var(--text) 28%, transparent) calc(50% + 0.5px),
-				transparent calc(50% + 0.5px)
-			);
-	}
-
-	.text-color-button .style-toolbar-button__text {
-		color: var(--text);
-	}
-
-	.text-color-icon {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 1rem;
-		height: 1rem;
-		border-radius: 0.24rem;
-		background: color-mix(in srgb, var(--surface) 88%, var(--text) 12%);
-		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent);
-		color: var(--preview-ink);
-		position: relative;
-		font-size: 0.92rem;
-		font-weight: 900;
-		line-height: 1;
-	}
-
-	.text-color-icon::after {
-		content: '';
-		position: absolute;
-		left: 0;
-		right: 0;
-		bottom: -0.12rem;
-		height: 0.14rem;
-		border-radius: 999px;
-		background: currentColor;
-	}
-
 	.font-icon {
 		font-family: var(--font-display);
 		font-size: 0.86rem;
 		line-height: 1;
+	}
+
+	.font-choice-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.45rem;
+		width: 100%;
+		height: 2rem;
+		padding: 0 0.65rem;
+		border: 1px solid var(--border);
+		border-radius: 0.55rem;
+		background: var(--surface-soft);
+		color: var(--text);
+		cursor: pointer;
+		font-size: 0.76rem;
+		font-weight: 800;
+		letter-spacing: 0.02em;
+	}
+
+	.font-choice-button:hover {
+		background: color-mix(in srgb, var(--text) 8%, var(--surface-soft));
+	}
+
+	.font-choice-button.alt-font .font-icon {
+		font-family: var(--font-body);
 	}
 
 	.toolbar-button.picker-open {
@@ -648,7 +570,4 @@
 			0 0 0 1px color-mix(in srgb, var(--brand-primary-500) 30%, transparent);
 	}
 
-	.text-style-button.alt-font {
-		font-family: inherit;
-	}
 </style>

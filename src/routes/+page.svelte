@@ -15,10 +15,12 @@
     import StopwatchWidget from "$lib/components/widgets/StopwatchWidget.svelte";
     import TrelsonWidget from "$lib/components/widgets/TrelsonWidget.svelte";
 	import {
+		BODY_TEXT_FONT_VARIANTS,
 		config as themeConfig,
         TEXT_WIDGET_BACKGROUND_VARIANTS,
         TEXT_WIDGET_COLOR_VARIANTS,
         TEXT_WIDGET_FONT_VARIANTS,
+        type BodyTextFontVariant,
         type TextWidgetBackgroundVariant,
 		type TextWidgetColorVariant,
 		type TextWidgetFontVariant,
@@ -56,6 +58,7 @@
         z: number;
         textValue?: string;
         textFont?: TextWidgetFontVariant;
+        bodyTextFont?: BodyTextFontVariant;
         textBackground?: TextWidgetBackgroundVariant;
         textColor?: TextWidgetColorVariant;
         timerDuration?: number;
@@ -105,6 +108,7 @@
     const TRELSON_SECTION_GAP_FACTOR = 0.18;
     const trelsonEnabled = themeConfig.features.trelson;
 	const textWidgetFontVariants = [...TEXT_WIDGET_FONT_VARIANTS];
+	const bodyTextFontVariants = [...BODY_TEXT_FONT_VARIANTS];
 	const textWidgetBackgroundVariants = [...TEXT_WIDGET_BACKGROUND_VARIANTS];
 	const textWidgetColorVariants = [...TEXT_WIDGET_COLOR_VARIANTS];
 	const variantWidgetEntries = Object.entries(variantConfig.widgets) as [
@@ -340,6 +344,9 @@
             instance.textValue =
                 getWidgetInitialState(type)?.textValue ??
                 "Skriv instruktioner här...";
+            instance.bodyTextFont = themeConfig.bodyText.defaultFont;
+            instance.textBackground = themeConfig.textWidget.defaultBackground;
+            instance.textColor = themeConfig.textWidget.defaultColor;
         }
 
         if (type === "timer") {
@@ -505,6 +512,25 @@
             )
                 ? (restored.textFont as TextWidgetFontVariant)
                 : themeConfig.textWidget.defaultFont;
+            restored.textBackground = textWidgetBackgroundVariants.includes(
+                restored.textBackground ??
+                    themeConfig.textWidget.defaultBackground,
+            )
+                ? (restored.textBackground as TextWidgetBackgroundVariant)
+                : themeConfig.textWidget.defaultBackground;
+            restored.textColor = textWidgetColorVariants.includes(
+                restored.textColor ?? themeConfig.textWidget.defaultColor,
+            )
+                ? (restored.textColor as TextWidgetColorVariant)
+                : themeConfig.textWidget.defaultColor;
+        }
+
+        if (restored.type === "bodyText") {
+            restored.bodyTextFont = bodyTextFontVariants.includes(
+                restored.bodyTextFont ?? themeConfig.bodyText.defaultFont,
+            )
+                ? (restored.bodyTextFont as BodyTextFontVariant)
+                : themeConfig.bodyText.defaultFont;
             restored.textBackground = textWidgetBackgroundVariants.includes(
                 restored.textBackground ??
                     themeConfig.textWidget.defaultBackground,
@@ -901,6 +927,36 @@
             return;
 
         widget.textValue = value;
+        widgets = [...widgets];
+    }
+
+    function setBodyTextWidgetFont(id: string, font: BodyTextFontVariant) {
+        const widget = findWidget(id);
+        if (!widget || widget.type !== "bodyText") return;
+
+        widget.bodyTextFont = font;
+        widgets = [...widgets];
+    }
+
+    function setBodyTextWidgetBackground(
+        id: string,
+        background: TextWidgetBackgroundVariant,
+    ) {
+        const widget = findWidget(id);
+        if (!widget || widget.type !== "bodyText") return;
+
+        widget.textBackground = background;
+        widgets = [...widgets];
+    }
+
+    function setBodyTextWidgetColor(
+        id: string,
+        color: TextWidgetColorVariant,
+    ) {
+        const widget = findWidget(id);
+        if (!widget || widget.type !== "bodyText") return;
+
+        widget.textColor = color;
         widgets = [...widgets];
     }
 
@@ -1745,7 +1801,20 @@
                         h={widget.h}
                         z={widget.z}
                         selected={selectedWidgetId === widget.id}
+                        resizing={resizeState?.id === widget.id}
+                        isDark={theme === "dark"}
                         value={widget.textValue ?? "Skriv instruktioner här..."}
+                        font={widget.bodyTextFont ??
+                            themeConfig.bodyText.defaultFont}
+                        background={widget.textBackground ??
+                            themeConfig.textWidget.defaultBackground}
+                        color={widget.textColor ??
+                            themeConfig.textWidget.defaultColor}
+                        fontLabels={themeConfig.bodyText.fontLabels}
+                        fontFamilies={themeConfig.bodyText.fontFamilies}
+                        backgroundLabels={themeConfig.textWidget
+                            .backgroundLabels}
+                        colorLabels={themeConfig.textWidget.colorLabels}
                         onSelect={() => selectWidget(widget.id)}
                         onMoveStart={(event) => startDrag(event, widget.id)}
                         onResizeStart={(event) => startResize(event, widget.id)}
@@ -1756,6 +1825,10 @@
                         onDelete={() => removeWidget(widget.id)}
                         onValueChange={(value) =>
                             updateTextWidgetValue(widget.id, value)}
+                        onBackgroundSelect={(background) =>
+                            setBodyTextWidgetBackground(widget.id, background)}
+                        onColorSelect={(color) =>
+                            setBodyTextWidgetColor(widget.id, color)}
                     />
                 {:else if widget.type === "stopwatch"}
                     <StopwatchWidget

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 
 	type Props = {
 		title: string;
@@ -10,17 +10,22 @@
 		z: number;
 		chrome?: boolean;
 		fitContentWidth?: boolean;
+		allowBodyOverflow?: boolean;
+		dragFromEditable?: boolean;
+		background?: string;
+		color?: string;
+		borderColor?: string;
 		selected?: boolean;
 		onSelect: () => void;
 		onMoveStart: (event: PointerEvent) => void;
 		onResizeStart: (event: PointerEvent) => void;
 		onBringForward: () => void;
 		onSendBackward: () => void;
-	onDelete?: () => void;
-	toolbarActions?: import('svelte').Snippet<
-		[{ horizontal: 'left' | 'right'; vertical: 'top' | 'bottom' }]
-	>;
-	children: import('svelte').Snippet;
+		onDelete?: () => void;
+		toolbarActions?: import('svelte').Snippet<
+			[{ horizontal: 'left' | 'right'; vertical: 'top' | 'bottom' }]
+		>;
+		children: import('svelte').Snippet;
 	};
 
 	let {
@@ -32,6 +37,11 @@
 		z,
 		chrome = true,
 		fitContentWidth = false,
+		allowBodyOverflow = false,
+		dragFromEditable = false,
+		background,
+		color,
+		borderColor,
 		selected = false,
 		onSelect,
 		onMoveStart,
@@ -44,10 +54,16 @@
 	}: Props = $props();
 
 	let toolbarElement = $state<HTMLDivElement | null>(null);
+	let widgetElement = $state<HTMLDivElement | null>(null);
 	let viewportWidth = $state(0);
 	let viewportHeight = $state(0);
 	let toolbarHorizontal = $state<'left' | 'right'>('right');
 	let toolbarVertical = $state<'top' | 'bottom'>('bottom');
+	let toolbarOffsetX = $state(0);
+	let toolbarHeight = $state(48);
+	let pendingEditableDragCleanup: (() => void) | null = null;
+
+	const editableDragThreshold = 5;
 
 	function syncViewport() {
 		if (typeof window === 'undefined') return;
@@ -55,20 +71,69 @@
 		viewportHeight = window.innerHeight;
 	}
 
+	function clearPendingEditableDrag() {
+		pendingEditableDragCleanup?.();
+		pendingEditableDragCleanup = null;
+	}
+
+	function startEditableDragWhenIntentional(event: PointerEvent) {
+		clearPendingEditableDrag();
+
+		const startX = event.clientX;
+		const startY = event.clientY;
+		const pointerId = event.pointerId;
+
+		function handleMove(moveEvent: PointerEvent) {
+			if (moveEvent.pointerId !== pointerId) return;
+
+			const distance = Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY);
+			if (distance < editableDragThreshold) return;
+
+			moveEvent.preventDefault();
+			window.getSelection()?.removeAllRanges();
+			clearPendingEditableDrag();
+			onMoveStart(moveEvent);
+		}
+
+		function handleEnd(endEvent: PointerEvent) {
+			if (endEvent.pointerId !== pointerId) return;
+			clearPendingEditableDrag();
+		}
+
+		window.addEventListener('pointermove', handleMove, { passive: false });
+		window.addEventListener('pointerup', handleEnd);
+		window.addEventListener('pointercancel', handleEnd);
+
+		pendingEditableDragCleanup = () => {
+			window.removeEventListener('pointermove', handleMove);
+			window.removeEventListener('pointerup', handleEnd);
+			window.removeEventListener('pointercancel', handleEnd);
+		};
+	}
+
 	function handlePointerDown(event: PointerEvent) {
 		event.stopPropagation();
 		onSelect();
 
-		const target = event.target as HTMLElement;
-		const isEditable = target.closest('[contenteditable="true"]') ||
-			target.closest('input, textarea, select, a');
+		const target = event.target instanceof HTMLElement ? event.target : widgetElement;
+		if (!target) return;
+
+		const isContentEditable = target.closest('[contenteditable="true"]');
+		const isFormControl = target.closest('input, textarea, select, a');
+		const isEditable = isContentEditable || isFormControl;
 
 		if (!selected) {
 			if (!isEditable) event.preventDefault();
 			return;
 		}
 		if (target.closest('button')) return;
-		if (isEditable) return;
+		if (isFormControl) return;
+		if (isContentEditable) {
+			if (dragFromEditable) {
+				startEditableDragWhenIntentional(event);
+			}
+			return;
+		}
 
 		event.preventDefault();
 		onMoveStart(event);
@@ -103,31 +168,46 @@
 		return () => window.removeEventListener('resize', syncViewport);
 	});
 
+	onDestroy(() => {
+		clearPendingEditableDrag();
+	});
+
 	$effect(() => {
 		if (!selected) return;
 		if (!toolbarElement) return;
+		if (!widgetElement) return;
 
-		const toolbarHeight = toolbarElement.offsetHeight;
+		const toolbarWidth = toolbarElement.offsetWidth;
+		const measuredToolbarHeight = toolbarElement.offsetHeight;
 		const edgePadding = 16;
-		const outsideRight = x + w > viewportWidth - edgePadding;
-		const outsideBottom = y + h + toolbarHeight + edgePadding > viewportHeight;
+		const widgetWidth = widgetElement.offsetWidth || w;
+		const preferredOffset = widgetWidth - toolbarWidth;
+		const minOffset = edgePadding - x;
+		const maxOffset = viewportWidth - edgePadding - x - toolbarWidth;
+		const clampedOffset = Math.min(Math.max(preferredOffset, minOffset), maxOffset);
+		const outsideBottom = y + h + measuredToolbarHeight + edgePadding > viewportHeight;
 
-		toolbarHorizontal = outsideRight ? 'left' : 'right';
+		toolbarOffsetX = Number.isFinite(clampedOffset) ? clampedOffset : 0;
+		toolbarHorizontal = x + toolbarOffsetX + toolbarWidth / 2 > viewportWidth / 2 ? 'right' : 'left';
 		toolbarVertical = outsideBottom ? 'top' : 'bottom';
+		toolbarHeight = measuredToolbarHeight;
 	});
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
+	bind:this={widgetElement}
 	class:frameless={!chrome}
 	class:selected
 	class="widget"
 	style={`${
 		fitContentWidth ? "" : `width:${w}px;`
-	}height:${h}px;left:${x}px;top:${y}px;z-index:${z};`}
+	}height:${h}px;left:${x}px;top:${y}px;z-index:${z};${
+		background ? `background:${background};` : ""
+	}${color ? `color:${color};` : ""}${borderColor ? `border-color:${borderColor};` : ""}`}
 	onpointerdown={handlePointerDown}
 >
-	<div class="widget-body">
+	<div class:allow-overflow={allowBodyOverflow} class="widget-body">
 		{@render children()}
 	</div>
 
@@ -135,8 +215,8 @@
 		<div
 			bind:this={toolbarElement}
 			class:top={toolbarVertical === 'top'}
-			class:left={toolbarHorizontal === 'left'}
 			class="widget-toolbar"
+			style={`--toolbar-offset-x:${toolbarOffsetX}px;--toolbar-height:${toolbarHeight}px;`}
 		>
 			<span class="widget-title">{title}</span>
 			<div class="widget-actions">
@@ -233,28 +313,25 @@
 
 	.widget-toolbar {
 		position: absolute;
-		right: 0;
-		bottom: -3rem;
+		left: var(--toolbar-offset-x, 0);
+		right: auto;
+		bottom: calc((var(--toolbar-height, 48px) + 0.5rem) * -1);
 		display: inline-flex;
 		align-items: center;
 		gap: 0.5rem;
+		max-width: calc(100vw - 2rem);
 		padding: 0.38rem 0.65rem;
 		border: 1px solid var(--border);
 		border-radius: 0.65rem;
 		background: var(--surface);
 		color: var(--text);
 		box-shadow: var(--shadow);
-		white-space: nowrap;
+		white-space: normal;
 	}
 
 	.widget-toolbar.top {
-		top: -3rem;
+		top: calc((var(--toolbar-height, 48px) + 0.5rem) * -1);
 		bottom: auto;
-	}
-
-	.widget-toolbar.left {
-		left: 0;
-		right: auto;
 	}
 
 	.widget-title {
@@ -268,6 +345,7 @@
 
 	.widget-actions {
 		display: inline-flex;
+		flex-wrap: wrap;
 		gap: 0.15rem;
 	}
 
@@ -298,6 +376,10 @@
 		height: 100%;
 		overflow: hidden;
 		border-radius: inherit;
+	}
+
+	.widget-body.allow-overflow {
+		overflow: visible;
 	}
 
 	.resize-button {

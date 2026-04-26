@@ -146,6 +146,8 @@
 	{z}
 	chrome={false}
 	fitContentWidth={true}
+	allowBodyOverflow={true}
+	dragFromEditable={editable}
 	{selected}
 	{toolbarActions}
 	{onSelect}

@@ -10,6 +10,8 @@ Projektet är just nu ett POC i SvelteKit/Vite+ med fokus på:
 - skolprofilering per organisation
 - fullscreen-läge för klassrumsskärm
 
+Se också [ROADMAP.md](/Users/varohlen/utveckling/lektionsvy-app/ROADMAP.md) för nästa steg, kända begränsningar och idéer.
+
 ## Struktur
 
 Projektet är uppdelat i tre lager:
