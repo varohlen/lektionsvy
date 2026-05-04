@@ -1178,6 +1178,12 @@
         flushPersistedBoardState();
     }
 
+    function closeMenus() {
+        addMenuOpen = false;
+        settingsOpen = false;
+        if (fullscreenActive) scheduleFullscreenDockHide();
+    }
+
     function toggleAddMenu() {
         addMenuOpen = !addMenuOpen;
         if (addMenuOpen) {
@@ -1655,6 +1661,68 @@
             syncTrelsonHeight(selectedWidgetId, false);
         }
         selectedWidgetId = null;
+        addMenuOpen = false;
+        settingsOpen = false;
+    }
+
+    function duplicateWidget(id: string) {
+        const source = findWidget(id);
+        if (!source) return;
+
+        const offset = 20;
+        const newId = nextWidgetId(source.type);
+        const clone: WidgetInstance = {
+            ...JSON.parse(JSON.stringify(source)),
+            id: newId,
+            x: source.x + offset,
+            y: source.y + offset,
+            z: getTopZ() + 1,
+        };
+
+        widgets = [...widgets, clone];
+        defaultLayout = false;
+        selectedWidgetId = newId;
+    }
+
+    function isEditableTarget(event: KeyboardEvent) {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return false;
+        if (target.closest('[contenteditable="true"]')) return true;
+        if (target.closest('input, textarea, select')) return true;
+        return false;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+        if (isEditableTarget(event)) return;
+
+        const mod = event.metaKey || event.ctrlKey;
+
+        if ((event.key === 'Backspace' || event.key === 'Delete') && selectedWidgetId) {
+            event.preventDefault();
+            removeWidget(selectedWidgetId);
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            if (addMenuOpen || settingsOpen) {
+                closeMenus();
+            } else if (selectedWidgetId) {
+                selectedWidgetId = null;
+            }
+            return;
+        }
+
+        if (mod && event.code === 'KeyD' && selectedWidgetId) {
+            event.preventDefault();
+            duplicateWidget(selectedWidgetId);
+            return;
+        }
+
+        if (event.key === 'f' && !mod) {
+            event.preventDefault();
+            toggleFullscreen();
+            return;
+        }
     }
 
     onMount(() => {
@@ -1745,6 +1813,7 @@
         window.addEventListener("pointermove", handlePointerMove);
         window.addEventListener("pointermove", handleFullscreenPointerMove);
         window.addEventListener("pointerup", stopDrag);
+        window.addEventListener("keydown", handleKeyDown, { capture: true });
         window.addEventListener("pagehide", handlePageHide);
         window.addEventListener("beforeunload", handlePageHide);
         document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -1756,6 +1825,7 @@
             window.removeEventListener("pointermove", handlePointerMove);
             window.removeEventListener("pointermove", handleFullscreenPointerMove);
             window.removeEventListener("pointerup", stopDrag);
+            window.removeEventListener("keydown", handleKeyDown, { capture: true });
             window.removeEventListener("pagehide", handlePageHide);
             window.removeEventListener("beforeunload", handlePageHide);
             document.removeEventListener(
@@ -1790,6 +1860,10 @@
                 onToggleFullscreen={toggleFullscreen}
                 onToggleTheme={toggleTheme}
             />
+            {#if addMenuOpen || settingsOpen}
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div class="menu-backdrop" onpointerdown={closeMenus}></div>
+            {/if}
             <AddWidgetMenu open={addMenuOpen} entries={widgetMenuEntries} />
             <SettingsPanel
                 open={settingsOpen}
@@ -2237,6 +2311,12 @@
 
     .dock-wrapper {
         display: contents;
+    }
+
+    .menu-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 18;
     }
 
     .dock-wrapper--fullscreen {
